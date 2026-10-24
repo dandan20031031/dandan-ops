@@ -1,0 +1,905 @@
+{
+  "dispatch_revision": 1,
+  "environment": {
+    "gpu": "NVIDIA GeForce RTX 5080",
+    "sm": [
+      12,
+      0
+    ],
+    "torch": "2.9.1+cu128",
+    "torch_cuda": "12.8"
+  },
+  "layout": "contiguous A[M,K], weight[N,K]; FP16; INT4 group_size=64",
+  "min_gain": 0.1,
+  "routes": {
+    "dense": {
+      "1x2048x1024": "torch",
+      "2x2048x1024": "torch",
+      "4x2048x1024": "torch",
+      "8x2048x1024": "torch",
+      "32x2048x1024": "torch",
+      "128x2048x1024": "torch",
+      "512x2048x1024": "torch",
+      "1x1024x1024": "torch",
+      "2x1024x1024": "torch",
+      "4x1024x1024": "torch",
+      "8x1024x1024": "torch",
+      "32x1024x1024": "torch",
+      "128x1024x1024": "torch",
+      "512x1024x1024": "tma",
+      "1x4096x1024": "torch",
+      "2x4096x1024": "torch",
+      "4x4096x1024": "torch",
+      "8x4096x1024": "torch",
+      "32x4096x1024": "torch",
+      "128x4096x1024": "torch",
+      "512x4096x1024": "torch",
+      "1x3072x1024": "torch",
+      "2x3072x1024": "torch",
+      "4x3072x1024": "torch",
+      "8x3072x1024": "torch",
+      "32x3072x1024": "torch",
+      "128x3072x1024": "torch",
+      "512x3072x1024": "torch",
+      "1x6144x1024": "cuda",
+      "2x6144x1024": "torch",
+      "4x6144x1024": "torch",
+      "8x6144x1024": "torch",
+      "32x6144x1024": "torch",
+      "128x6144x1024": "torch",
+      "512x6144x1024": "torch",
+      "1x1024x3072": "torch",
+      "2x1024x3072": "torch",
+      "4x1024x3072": "torch",
+      "8x1024x3072": "torch",
+      "32x1024x3072": "torch",
+      "128x1024x3072": "torch",
+      "512x1024x3072": "tma",
+      "1x1024x2048": "torch",
+      "2x1024x2048": "torch",
+      "4x1024x2048": "torch",
+      "8x1024x2048": "torch",
+      "32x1024x2048": "torch",
+      "128x1024x2048": "torch",
+      "512x1024x2048": "tma"
+    },
+    "w4a16": {
+      "1x2048x1024": "w4a16_small",
+      "2x2048x1024": "w4a16_small",
+      "4x2048x1024": "w4a16_small",
+      "8x2048x1024": "w4a16_small",
+      "32x2048x1024": "w4a16_tensorcore",
+      "128x2048x1024": "w4a16_tensorcore",
+      "512x2048x1024": "w4a16_tensorcore",
+      "1x1024x1024": "w4a16_small",
+      "2x1024x1024": "w4a16_small",
+      "4x1024x1024": "w4a16_small",
+      "8x1024x1024": "w4a16_small",
+      "32x1024x1024": "w4a16_tensorcore",
+      "128x1024x1024": "w4a16_tensorcore",
+      "512x1024x1024": "w4a16_tensorcore",
+      "1x4096x1024": "w4a16_small",
+      "2x4096x1024": "w4a16_small",
+      "4x4096x1024": "w4a16_small",
+      "8x4096x1024": "w4a16_small",
+      "32x4096x1024": "w4a16_tensorcore",
+      "128x4096x1024": "w4a16_tensorcore",
+      "512x4096x1024": "w4a16_tensorcore",
+      "1x3072x1024": "w4a16_small",
+      "2x3072x1024": "w4a16_small",
+      "4x3072x1024": "w4a16_small",
+      "8x3072x1024": "w4a16_small",
+      "32x3072x1024": "w4a16_tensorcore",
+      "128x3072x1024": "w4a16_tensorcore",
+      "512x3072x1024": "w4a16_tensorcore",
+      "1x6144x1024": "w4a16_small",
+      "2x6144x1024": "w4a16_small",
+      "4x6144x1024": "w4a16_small",
+      "8x6144x1024": "w4a16_small",
+      "32x6144x1024": "w4a16_tensorcore",
+      "128x6144x1024": "w4a16_tensorcore",
+      "512x6144x1024": "w4a16_tensorcore",
+      "1x1024x3072": "w4a16_small",
+      "2x1024x3072": "w4a16_small",
+      "4x1024x3072": "w4a16_small",
+      "8x1024x3072": "w4a16_small",
+      "32x1024x3072": "w4a16_tensorcore",
+      "128x1024x3072": "w4a16_tensorcore",
+      "512x1024x3072": "w4a16_tensorcore",
+      "1x1024x2048": "w4a16_small",
+      "2x1024x2048": "w4a16_small",
+      "4x1024x2048": "w4a16_small",
+      "8x1024x2048": "w4a16_small",
+      "32x1024x2048": "w4a16_tensorcore",
+      "128x1024x2048": "w4a16_tensorcore",
+      "512x1024x2048": "w4a16_tensorcore"
+    }
+  },
+  "decisions": [
+    {
+      "family": "dense",
+      "shape": "1x2048x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.584000144153833,
+      "incumbent_us": 8.50799959152937
+    },
+    {
+      "family": "w4a16",
+      "shape": "1x2048x1024",
+      "incumbent": "w4a16_gemv",
+      "selected": "w4a16_small",
+      "selected_us": 3.819999983534217,
+      "incumbent_us": 9.655999951064587
+    },
+    {
+      "family": "dense",
+      "shape": "2x2048x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 4.7439998015761375,
+      "incumbent_us": 8.535999804735184
+    },
+    {
+      "family": "w4a16",
+      "shape": "2x2048x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 4.259999841451645,
+      "incumbent_us": 20.899999886751175
+    },
+    {
+      "family": "dense",
+      "shape": "4x2048x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 4.819999914616346,
+      "incumbent_us": 8.535999804735184
+    },
+    {
+      "family": "w4a16",
+      "shape": "4x2048x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 6.023999769240618,
+      "incumbent_us": 21.12800069153309
+    },
+    {
+      "family": "dense",
+      "shape": "8x2048x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.036000162363052,
+      "incumbent_us": 8.631999604403973
+    },
+    {
+      "family": "w4a16",
+      "shape": "8x2048x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 9.944000281393528,
+      "incumbent_us": 20.972000434994698
+    },
+    {
+      "family": "dense",
+      "shape": "32x2048x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.528000183403492,
+      "incumbent_us": 9.123999625444412
+    },
+    {
+      "family": "w4a16",
+      "shape": "32x2048x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 14.991999603807926,
+      "incumbent_us": 14.991999603807926
+    },
+    {
+      "family": "dense",
+      "shape": "128x2048x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 8.452000096440315,
+      "incumbent_us": 16.45199954509735
+    },
+    {
+      "family": "w4a16",
+      "shape": "128x2048x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 29.572000727057457,
+      "incumbent_us": 29.572000727057457
+    },
+    {
+      "family": "dense",
+      "shape": "512x2048x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 26.683999225497246,
+      "incumbent_us": 29.96000088751316
+    },
+    {
+      "family": "w4a16",
+      "shape": "512x2048x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 37.064000964164734,
+      "incumbent_us": 37.064000964164734
+    },
+    {
+      "family": "dense",
+      "shape": "1x1024x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 4.131999798119068,
+      "incumbent_us": 8.667999878525734
+    },
+    {
+      "family": "w4a16",
+      "shape": "1x1024x1024",
+      "incumbent": "w4a16_gemv",
+      "selected": "w4a16_small",
+      "selected_us": 3.5880000796169043,
+      "incumbent_us": 5.956000182777643
+    },
+    {
+      "family": "dense",
+      "shape": "2x1024x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 4.559999797493219,
+      "incumbent_us": 8.484000340104103
+    },
+    {
+      "family": "w4a16",
+      "shape": "2x1024x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 4.056000150740147,
+      "incumbent_us": 20.99199965596199
+    },
+    {
+      "family": "dense",
+      "shape": "4x1024x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 4.311999771744013,
+      "incumbent_us": 8.379999548196793
+    },
+    {
+      "family": "w4a16",
+      "shape": "4x1024x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 5.539999809116125,
+      "incumbent_us": 20.924000069499016
+    },
+    {
+      "family": "dense",
+      "shape": "8x1024x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 4.511999897658825,
+      "incumbent_us": 8.527999743819237
+    },
+    {
+      "family": "w4a16",
+      "shape": "8x1024x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 9.336000308394432,
+      "incumbent_us": 20.927999168634415
+    },
+    {
+      "family": "dense",
+      "shape": "32x1024x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.535999778658152,
+      "incumbent_us": 9.200000204145908
+    },
+    {
+      "family": "w4a16",
+      "shape": "32x1024x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 14.98399954289198,
+      "incumbent_us": 14.98399954289198
+    },
+    {
+      "family": "dense",
+      "shape": "128x1024x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 7.751999888569117,
+      "incumbent_us": 15.348000451922417
+    },
+    {
+      "family": "w4a16",
+      "shape": "128x1024x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 29.632000252604485,
+      "incumbent_us": 29.632000252604485
+    },
+    {
+      "family": "dense",
+      "shape": "512x1024x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "hgemm_tma",
+      "selected_us": 16.26400090754032,
+      "incumbent_us": 16.26400090754032
+    },
+    {
+      "family": "w4a16",
+      "shape": "512x1024x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 30.484000220894814,
+      "incumbent_us": 30.484000220894814
+    },
+    {
+      "family": "dense",
+      "shape": "1x4096x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 7.675999775528908,
+      "incumbent_us": 8.643999695777893
+    },
+    {
+      "family": "w4a16",
+      "shape": "1x4096x1024",
+      "incumbent": "w4a16_gemv",
+      "selected": "w4a16_small",
+      "selected_us": 5.355999805033207,
+      "incumbent_us": 16.952000558376312
+    },
+    {
+      "family": "dense",
+      "shape": "2x4096x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.452000070363283,
+      "incumbent_us": 8.568000048398972
+    },
+    {
+      "family": "w4a16",
+      "shape": "2x4096x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 5.98399993032217,
+      "incumbent_us": 20.983999595046043
+    },
+    {
+      "family": "dense",
+      "shape": "4x4096x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.535999778658152,
+      "incumbent_us": 8.631999604403973
+    },
+    {
+      "family": "w4a16",
+      "shape": "4x4096x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 7.852000184357166,
+      "incumbent_us": 21.12800069153309
+    },
+    {
+      "family": "dense",
+      "shape": "8x4096x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.056000012904406,
+      "incumbent_us": 8.679999969899654
+    },
+    {
+      "family": "w4a16",
+      "shape": "8x4096x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 13.736000284552574,
+      "incumbent_us": 21.12000063061714
+    },
+    {
+      "family": "dense",
+      "shape": "32x4096x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 7.019999902695417,
+      "incumbent_us": 9.14399977773428
+    },
+    {
+      "family": "w4a16",
+      "shape": "32x4096x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 15.027999877929688,
+      "incumbent_us": 15.027999877929688
+    },
+    {
+      "family": "dense",
+      "shape": "128x4096x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 15.011999756097794,
+      "incumbent_us": 19.87599954009056
+    },
+    {
+      "family": "w4a16",
+      "shape": "128x4096x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 30.91599978506565,
+      "incumbent_us": 30.91599978506565
+    },
+    {
+      "family": "dense",
+      "shape": "512x4096x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 51.364000886678696,
+      "incumbent_us": 57.360000908374786
+    },
+    {
+      "family": "w4a16",
+      "shape": "512x4096x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 71.63599878549576,
+      "incumbent_us": 71.63599878549576
+    },
+    {
+      "family": "dense",
+      "shape": "1x3072x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 7.087999954819679,
+      "incumbent_us": 8.911999873816967
+    },
+    {
+      "family": "w4a16",
+      "shape": "1x3072x1024",
+      "incumbent": "w4a16_gemv",
+      "selected": "w4a16_small",
+      "selected_us": 4.863999783992767,
+      "incumbent_us": 13.512000441551208
+    },
+    {
+      "family": "dense",
+      "shape": "2x3072x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.388000048696995,
+      "incumbent_us": 8.66399984806776
+    },
+    {
+      "family": "w4a16",
+      "shape": "2x3072x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 4.879999905824661,
+      "incumbent_us": 21.004000678658485
+    },
+    {
+      "family": "dense",
+      "shape": "4x3072x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.140000022947788,
+      "incumbent_us": 8.460000157356262
+    },
+    {
+      "family": "w4a16",
+      "shape": "4x3072x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 6.407999899238348,
+      "incumbent_us": 20.999999716877937
+    },
+    {
+      "family": "dense",
+      "shape": "8x3072x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.336000118404627,
+      "incumbent_us": 8.812000043690205
+    },
+    {
+      "family": "w4a16",
+      "shape": "8x3072x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 10.448000393807888,
+      "incumbent_us": 21.172000095248222
+    },
+    {
+      "family": "dense",
+      "shape": "32x3072x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.972000002861023,
+      "incumbent_us": 9.655999951064587
+    },
+    {
+      "family": "w4a16",
+      "shape": "32x3072x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 15.40399994701147,
+      "incumbent_us": 15.40399994701147
+    },
+    {
+      "family": "dense",
+      "shape": "128x3072x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 14.936000108718872,
+      "incumbent_us": 17.83199980854988
+    },
+    {
+      "family": "w4a16",
+      "shape": "128x3072x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 29.756000265479088,
+      "incumbent_us": 29.756000265479088
+    },
+    {
+      "family": "dense",
+      "shape": "512x3072x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 34.00399908423424,
+      "incumbent_us": 44.544000178575516
+    },
+    {
+      "family": "w4a16",
+      "shape": "512x3072x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 68.41599941253662,
+      "incumbent_us": 68.41599941253662
+    },
+    {
+      "family": "dense",
+      "shape": "1x6144x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "hgemm_v8",
+      "selected_us": 9.379999712109566,
+      "incumbent_us": 9.379999712109566
+    },
+    {
+      "family": "w4a16",
+      "shape": "1x6144x1024",
+      "incumbent": "w4a16_gemv",
+      "selected": "w4a16_small",
+      "selected_us": 6.544000003486872,
+      "incumbent_us": 24.240000173449516
+    },
+    {
+      "family": "dense",
+      "shape": "2x6144x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.388000212609768,
+      "incumbent_us": 9.40799992531538
+    },
+    {
+      "family": "w4a16",
+      "shape": "2x6144x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 7.315999828279018,
+      "incumbent_us": 22.204000502824783
+    },
+    {
+      "family": "dense",
+      "shape": "4x6144x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.579999811947346,
+      "incumbent_us": 9.47600044310093
+    },
+    {
+      "family": "w4a16",
+      "shape": "4x6144x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 10.263999924063683,
+      "incumbent_us": 22.272000089287758
+    },
+    {
+      "family": "dense",
+      "shape": "8x6144x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.579999811947346,
+      "incumbent_us": 9.63599979877472
+    },
+    {
+      "family": "w4a16",
+      "shape": "8x6144x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 17.83600077033043,
+      "incumbent_us": 22.708000615239143
+    },
+    {
+      "family": "dense",
+      "shape": "32x6144x1024",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 8.151999674737453,
+      "incumbent_us": 11.687999591231346
+    },
+    {
+      "family": "w4a16",
+      "shape": "32x6144x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 18.640000373125076,
+      "incumbent_us": 18.640000373125076
+    },
+    {
+      "family": "dense",
+      "shape": "128x6144x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 21.104000508785248,
+      "incumbent_us": 30.875999480485916
+    },
+    {
+      "family": "w4a16",
+      "shape": "128x6144x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 39.36399891972542,
+      "incumbent_us": 39.36399891972542
+    },
+    {
+      "family": "dense",
+      "shape": "512x6144x1024",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 63.35200369358063,
+      "incumbent_us": 73.36799800395966
+    },
+    {
+      "family": "w4a16",
+      "shape": "512x6144x1024",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 106.55199736356735,
+      "incumbent_us": 106.55199736356735
+    },
+    {
+      "family": "dense",
+      "shape": "1x1024x3072",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.87999976798892,
+      "incumbent_us": 22.55599945783615
+    },
+    {
+      "family": "w4a16",
+      "shape": "1x1024x3072",
+      "incumbent": "w4a16_gemv",
+      "selected": "w4a16_small",
+      "selected_us": 6.175999995321035,
+      "incumbent_us": 10.259999893605709
+    },
+    {
+      "family": "dense",
+      "shape": "2x1024x3072",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.3599999994039536,
+      "incumbent_us": 22.676000371575356
+    },
+    {
+      "family": "w4a16",
+      "shape": "2x1024x3072",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 8.476000279188156,
+      "incumbent_us": 61.68400123715401
+    },
+    {
+      "family": "dense",
+      "shape": "4x1024x3072",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.391999777406454,
+      "incumbent_us": 22.624000906944275
+    },
+    {
+      "family": "w4a16",
+      "shape": "4x1024x3072",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 12.9399998113513,
+      "incumbent_us": 61.72800064086914
+    },
+    {
+      "family": "dense",
+      "shape": "8x1024x3072",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 8.840000256896019,
+      "incumbent_us": 22.495999932289124
+    },
+    {
+      "family": "w4a16",
+      "shape": "8x1024x3072",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 23.19199964404106,
+      "incumbent_us": 61.65599822998047
+    },
+    {
+      "family": "dense",
+      "shape": "32x1024x3072",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 7.596000097692013,
+      "incumbent_us": 22.967999801039696
+    },
+    {
+      "family": "w4a16",
+      "shape": "32x1024x3072",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 41.708000004291534,
+      "incumbent_us": 41.708000004291534
+    },
+    {
+      "family": "dense",
+      "shape": "128x1024x3072",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 13.248000293970108,
+      "incumbent_us": 39.97199982404709
+    },
+    {
+      "family": "w4a16",
+      "shape": "128x1024x3072",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 80.8039978146553,
+      "incumbent_us": 80.8039978146553
+    },
+    {
+      "family": "dense",
+      "shape": "512x1024x3072",
+      "incumbent": "hgemm_tma",
+      "selected": "hgemm_tma",
+      "selected_us": 41.19199886918068,
+      "incumbent_us": 41.19199886918068
+    },
+    {
+      "family": "w4a16",
+      "shape": "512x1024x3072",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 81.90400153398514,
+      "incumbent_us": 81.90400153398514
+    },
+    {
+      "family": "dense",
+      "shape": "1x1024x2048",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 5.5959997698664665,
+      "incumbent_us": 15.636000782251358
+    },
+    {
+      "family": "w4a16",
+      "shape": "1x1024x2048",
+      "incumbent": "w4a16_gemv",
+      "selected": "w4a16_small",
+      "selected_us": 4.856000188738108,
+      "incumbent_us": 8.12000036239624
+    },
+    {
+      "family": "dense",
+      "shape": "2x1024x2048",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.59599993377924,
+      "incumbent_us": 15.515999868512154
+    },
+    {
+      "family": "w4a16",
+      "shape": "2x1024x2048",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 6.4119999296963215,
+      "incumbent_us": 41.64399951696396
+    },
+    {
+      "family": "dense",
+      "shape": "4x1024x2048",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.560000125318766,
+      "incumbent_us": 15.564000234007835
+    },
+    {
+      "family": "w4a16",
+      "shape": "4x1024x2048",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 9.163999930024147,
+      "incumbent_us": 41.42000153660774
+    },
+    {
+      "family": "dense",
+      "shape": "8x1024x2048",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.591999903321266,
+      "incumbent_us": 15.556000173091888
+    },
+    {
+      "family": "w4a16",
+      "shape": "8x1024x2048",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_small",
+      "selected_us": 16.392000019550323,
+      "incumbent_us": 41.68799892067909
+    },
+    {
+      "family": "dense",
+      "shape": "32x1024x2048",
+      "incumbent": "hgemm_v8",
+      "selected": "torch_fp16",
+      "selected_us": 6.043999921530485,
+      "incumbent_us": 16.092000529170036
+    },
+    {
+      "family": "w4a16",
+      "shape": "32x1024x2048",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 28.44800055027008,
+      "incumbent_us": 28.44800055027008
+    },
+    {
+      "family": "dense",
+      "shape": "128x1024x2048",
+      "incumbent": "hgemm_tma",
+      "selected": "torch_fp16",
+      "selected_us": 12.656000442802906,
+      "incumbent_us": 27.612000703811646
+    },
+    {
+      "family": "w4a16",
+      "shape": "128x1024x2048",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 54.735999554395676,
+      "incumbent_us": 54.735999554395676
+    },
+    {
+      "family": "dense",
+      "shape": "512x1024x2048",
+      "incumbent": "hgemm_tma",
+      "selected": "hgemm_tma",
+      "selected_us": 28.44800055027008,
+      "incumbent_us": 28.44800055027008
+    },
+    {
+      "family": "w4a16",
+      "shape": "512x1024x2048",
+      "incumbent": "w4a16_tensorcore",
+      "selected": "w4a16_tensorcore",
+      "selected_us": 56.171998381614685,
+      "incumbent_us": 56.171998381614685
+    }
+  ],
+  "source_report": "bench_qwen3_calibration_complete.json"
+}

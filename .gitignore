@@ -1,0 +1,41 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+*.pyd
+*.dll
+*.so
+*.obj
+*.exp
+*.lib
+.pytest_cache/
+*.log
+
+# Local environments, model weights and credentials
+.venv/
+.cuda-*/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+models/
+*.safetensors
+*.pt
+*.pth
+*.bin
+
+# Compiler/preprocessor scratch files from local experiments
+/pre.txt
+/pre2.txt
+/test_flash.cu
+/test_soft*
+*.ii
+*.ii.res
+*.cudafe*
+*.fatbin*
+
+# Generated distributions
+dist/
+.coverage
+htmlcov/

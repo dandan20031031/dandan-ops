@@ -1,0 +1,52 @@
+{
+  "torch": "2.9.1+cu130",
+  "torch_cuda": "13.0",
+  "gpu": "NVIDIA GeForce RTX 5080",
+  "capability": [
+    12,
+    0
+  ],
+  "warmup": 10,
+  "repeats": 20,
+  "results": [
+    {
+      "M": 1,
+      "N": 4096,
+      "K": 4096,
+      "dense_fp16_us": 42.94399917125702,
+      "w4a16_us": 40.863998234272,
+      "w4a16_over_dense": 0.9515648058605313,
+      "dense_weight_mib": 32.0,
+      "w4a16_state_mib": 10.0,
+      "memory_ratio": 0.3125,
+      "max_abs_error": 0.0009765625,
+      "mean_abs_error": 8.940696716308594e-07
+    },
+    {
+      "M": 8,
+      "N": 4096,
+      "K": 4096,
+      "dense_fp16_us": 17.055999487638474,
+      "w4a16_us": 827.3280262947083,
+      "w4a16_over_dense": 48.506569602932004,
+      "dense_weight_mib": 32.0,
+      "w4a16_state_mib": 10.0,
+      "memory_ratio": 0.3125,
+      "max_abs_error": 0.125,
+      "mean_abs_error": 5.221366882324219e-05
+    },
+    {
+      "M": 32,
+      "N": 4096,
+      "K": 4096,
+      "dense_fp16_us": 28.192000463604927,
+      "w4a16_us": 7375.5202293396,
+      "w4a16_over_dense": 261.61748396894313,
+      "dense_weight_mib": 32.0,
+      "w4a16_state_mib": 10.0,
+      "memory_ratio": 0.3125,
+      "max_abs_error": 0.125,
+      "mean_abs_error": 4.2438507080078125e-05
+    }
+  ]
+}

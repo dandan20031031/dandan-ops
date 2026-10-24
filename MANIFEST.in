@@ -1,0 +1,10 @@
+recursive-include dandan_ops/csrc *.cu *.h
+recursive-include kernels *.cuh
+include README.md
+include LICENSE THIRD_PARTY_NOTICES.md
+include CONTRIBUTING.md
+include bench_*.py bench_*.json
+recursive-include scripts *.py *.ps1
+recursive-include tests *.py
+recursive-include docs *.md
+recursive-include dandan_ops/profiles *.json
