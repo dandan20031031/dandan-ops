@@ -100,7 +100,7 @@ def main():
     parser.add_argument("--warmup", type=int, default=10)
     parser.add_argument("--repeats", type=int, default=21)
     parser.add_argument("--batch", type=int, default=4)
-    parser.add_argument("--json", default="bench_hgemm.json")
+    parser.add_argument("--json", default="benchmarks/results/bench_hgemm.json")
     args = parser.parse_args()
     if min(args.warmup, args.repeats, args.batch) < 1:
         parser.error("warmup/repeats/batch must be positive")
@@ -114,6 +114,7 @@ def main():
     for shape in args.shapes:
         m, n, k = map(int, shape.lower().split("x"))
         result["results"].append(run(m, n, k, args))
+    Path(args.json).parent.mkdir(parents=True, exist_ok=True)
     Path(args.json).write_text(json.dumps(result, indent=2), encoding="utf-8")
 
 

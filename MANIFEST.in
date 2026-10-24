@@ -3,7 +3,8 @@ recursive-include kernels *.cuh
 include README.md
 include LICENSE THIRD_PARTY_NOTICES.md
 include CONTRIBUTING.md
-include bench_*.py bench_*.json
+include bench_*.py
+recursive-include benchmarks/results *.json *.md
 recursive-include scripts *.py *.ps1
 recursive-include tests *.py
 recursive-include docs *.md

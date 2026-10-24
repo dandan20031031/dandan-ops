@@ -37,6 +37,7 @@ def object_sha256(value):
 
 
 def write_report(path, report):
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     Path(path).write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
@@ -317,7 +318,7 @@ def main():
     parser.add_argument("--seed", type=int, default=317)
     parser.add_argument("--prompt", default="用一句话解释 KV Cache。")
     parser.add_argument("--profile-cpu", action="store_true")
-    parser.add_argument("--json", default="bench_decode_buffers.json")
+    parser.add_argument("--json", default="benchmarks/results/bench_decode_buffers.json")
     args = parser.parse_args()
     if min(*args.batches, args.repeats, args.warmup, args.capture_warmup, args.block_size) < 1:
         parser.error("batch sizes and counts must be positive")

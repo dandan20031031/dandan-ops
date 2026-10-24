@@ -260,6 +260,7 @@ def run(args):
                 with route_profile(case.measured): row["cpu_profile"][case.name] = cpu_profile(case.forward)
         for case in cases: case.close_probe()
         report["results"].append(row)
+        Path(args.json).parent.mkdir(parents=True, exist_ok=True)
         Path(args.json).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
         print(f"B={batch}: " + ", ".join(f"{name}={v['decode_step_ms']['median']:.3f} ms/step"
               for name,v in row["generation"].items()),flush=True)
@@ -281,7 +282,7 @@ def main():
     p.add_argument("--validate-steps",type=int,default=8)
     p.add_argument("--prompt",default="用一句话解释 KV Cache。")
     p.add_argument("--profile-cpu",action="store_true")
-    p.add_argument("--json",default="bench_qwen3_graph.json")
+    p.add_argument("--json",default="benchmarks/results/bench_qwen3_graph.json")
     args = p.parse_args()
     if min(*args.batches,args.warmup,args.repeats,args.validate_steps,args.block_size) < 1 or args.tokens < 2:
         p.error("counts must be positive, tokens>=2")

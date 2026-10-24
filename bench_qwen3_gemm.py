@@ -107,6 +107,7 @@ def run(args):
                 "timing": timing, "errors": errors})
             print(f"{projection} M={m}: " + ", ".join(
                 f"{name}={value['median_us']:.2f}" for name,value in timing.items()), flush=True)
+            Path(args.json).parent.mkdir(parents=True, exist_ok=True)
             Path(args.json).write_text(json.dumps(report, indent=2), encoding="utf-8")
 
 
@@ -120,7 +121,7 @@ def main():
     p.add_argument("--warmup", type=int, default=5)
     p.add_argument("--repeats", type=int, default=21)
     p.add_argument("--batch", type=int, default=8)
-    p.add_argument("--json", default="bench_qwen3_gemm.json")
+    p.add_argument("--json", default="benchmarks/results/bench_qwen3_gemm.json")
     args = p.parse_args()
     if min(*args.ms, args.warmup, args.repeats, args.batch) < 1:
         p.error("counts must be positive")

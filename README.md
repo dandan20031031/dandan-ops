@@ -151,6 +151,8 @@ RTX 5080/cu128、固定生成 16 token、忽略 EOS、11 轮随机交错的中�
 这些是短上下文实验，不代表长上下文或在线服务的吞吐。
 
 详见 [基准与复现](docs/BENCHMARKS.md)，原始 JSON 数据随源码保留。
+报告集中在 [benchmarks/results](benchmarks/results/)，供复核与离线校准使用；
+运行时只读取 `dandan_ops/profiles/` 中的后端路由表。
 发布验证：兼容 `ae967dd` 引擎的全部测试 **317 passed**；当前新版引擎环境
 **294 passed, 1 skipped**（整个旧接口集成模块跳过）。新增 ABI 发现测试覆盖 Windows/Linux 文件命名。
 已有 CUDA 测试覆盖尾块、未对齐输入、非默认 stream、CUDA Graph、数值契约、KV 隔离和异常恢复。
@@ -163,7 +165,8 @@ dandan_ops/csrc/     PyTorch 算子注册、参数校验、CUDA launcher
 kernels/            CUDA kernel 实现
 tests/              数值、边界与可选引擎集成测试
 scripts/            构建、路由选择、wheel 验证
-bench_*.py/json     benchmark 脚本与原始结果
+bench_*.py          benchmark 脚本
+benchmarks/results/ benchmark 原始报告与离线校准数据
 docs/               技术细节与实验记录
 ```
 

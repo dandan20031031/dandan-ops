@@ -106,6 +106,7 @@ def run(args):
         "logits_comparison":{"steps":min(args.tokens,8),"max_abs":max_abs,"relative_l2":relative_l2},
         "packed_layers":len(layers), "graph":False, "batch":1,
         "note":"same packed weights; only profile enabled/disabled. No comparison to original floating weights."}
+    Path(args.json).parent.mkdir(parents=True, exist_ok=True)
     Path(args.json).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
     print(json.dumps(report["median_ms"],indent=2),flush=True)
 
@@ -119,7 +120,7 @@ def main():
     p.add_argument("--tokens",type=int,default=16)
     p.add_argument("--warmup",type=int,default=1)
     p.add_argument("--repeats",type=int,default=3)
-    p.add_argument("--json",default="bench_qwen3_engine.json")
+    p.add_argument("--json",default="benchmarks/results/bench_qwen3_engine.json")
     args = p.parse_args()
     if min(args.tokens,args.warmup,args.repeats) < 1: p.error("counts must be positive")
     run(args)

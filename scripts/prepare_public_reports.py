@@ -52,7 +52,7 @@ def main():
         return None if isinstance(value, str) else value
 
     rows = []
-    for path in sorted(root.glob("bench_*.json")):
+    for path in sorted((root / "benchmarks/results").glob("bench_*.json")):
         raw = path.read_bytes()
         before = json.loads(raw)
         after = clean(before)

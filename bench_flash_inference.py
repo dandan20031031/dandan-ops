@@ -57,6 +57,7 @@ def run(args):
               "torch": torch.__version__, "torch_cuda": torch.version.cuda,
               "timing_mode": "CUDA Graph GPU latency per call; repeated inputs/warm cache",
               "config": vars(args), "results": rows}
+    Path(args.json).parent.mkdir(parents=True, exist_ok=True)
     Path(args.json).write_text(json.dumps(report, indent=2), encoding="utf-8")
 
 
@@ -73,7 +74,7 @@ def main():
     p.add_argument("--warmup", type=int, default=5)
     p.add_argument("--repeats", type=int, default=21)
     p.add_argument("--batch", type=int, default=8)
-    p.add_argument("--json", default="bench_flash_inference.json")
+    p.add_argument("--json", default="benchmarks/results/bench_flash_inference.json")
     args = p.parse_args()
     if min(args.B, args.Hq, args.Hkv, args.warmup, args.repeats, args.batch) <= 0 or args.Hq % args.Hkv:
         p.error("dimensions/counts must be positive and Hq must be divisible by Hkv")
