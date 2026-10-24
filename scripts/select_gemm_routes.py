@@ -1,4 +1,4 @@
-"""Build an exact-shape profile from bench_qwen3_gemm.py measurements.
+"""Build an exact-shape profile from benchmarks/bench_qwen3_gemm.py measurements.
 
 Keep the incumbent unless a candidate is at least --min-gain faster. Runtime
 matching also requires the same GPU model, SM, PyTorch/CUDA build and layout.

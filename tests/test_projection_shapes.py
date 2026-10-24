@@ -11,11 +11,7 @@ from pathlib import Path
 import pytest
 
 
-# Works beside the staged benchmark and in the library's tests/ directory.
-SOURCE = next(path for path in (
-    Path(__file__).with_name("bench_qwen3_gemm.py"),
-    Path(__file__).resolve().parents[1] / "bench_qwen3_gemm.py",
-) if path.is_file())
+SOURCE = Path(__file__).resolve().parents[1] / "benchmarks/bench_qwen3_gemm.py"
 DEFAULT_MODEL_CONFIG = next((path for parent in SOURCE.resolve().parents
     if (path := parent / "myvllm" / "models" / "Qwen3-0.6B" / "config.json").is_file()), None)
 

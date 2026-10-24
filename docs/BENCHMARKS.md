@@ -11,19 +11,19 @@ only the packaged dispatch table in `dandan_ops/profiles/`.
 
 ## Operators
 
-- `bench_hgemm.py/json`: historical FP16 HGEMM, TMA and W4A16 comparison.
-- `bench_qwen3_gemm.py`: derives Qwen3 projection shapes from a local model
+- `benchmarks/bench_hgemm.py` / `benchmarks/results/bench_hgemm.json`: historical FP16 HGEMM, TMA and W4A16 comparison.
+- `benchmarks/bench_qwen3_gemm.py`: derives Qwen3 projection shapes from a local model
   config; synthetic inputs, CUDA Graph, FP32 oracles outside timing.
 - `benchmarks/results/bench_qwen3_calibration_complete.json`: seven projection shapes, seven M
   values, 49 measured shapes. Profile contains 98 dense/W4A16 routes.
 - `benchmarks/results/bench_qwen3_cold.json`: separate L2 eviction experiment, not mixed with
   warm-cache measurements.
-- `bench_flash_inference.py/json`: dense D=128 FP16 GQA attention, not paged KV.
+- `benchmarks/bench_flash_inference.py` / `benchmarks/results/bench_flash_inference.json`: dense D=128 FP16 GQA attention, not paged KV.
 
 ```powershell
-python bench_qwen3_gemm.py --config ../myvllm/models/Qwen3-0.6B/config.json --extra small --json benchmarks/results/bench_local.json
+python -m benchmarks.bench_qwen3_gemm --config ../myvllm/models/Qwen3-0.6B/config.json --extra small --json benchmarks/results/bench_local.json
 python scripts/select_gemm_routes.py benchmarks/results/bench_local.json --output dandan_ops/profiles/qwen3_sm120_cu128.json
-python bench_flash_inference.py --shapes 128x128 1024x1024 1x1024 1x4096
+python -m benchmarks.bench_flash_inference --shapes 128x128 1024x1024 1x1024 1x4096
 ```
 
 Run calibration on the target machine before replacing a profile. Routes
@@ -47,9 +47,9 @@ performance. Legacy integration tests accept a compatible checkout through
 `MYVLLM_ROOT` and skip when the newer API is detected.
 
 ```powershell
-python bench_qwen3_graph.py --engine ../myvllm --model ../myvllm/models/Qwen3-0.6B --batches 1 2 4 8 --tokens 16 --repeats 11 --json benchmarks/results/bench_graph_local.json
-python bench_decode_buffers.py --engine ../myvllm --model ../myvllm/models/Qwen3-0.6B --batches 1 2 4 8 --tokens 16 --repeats 11 --warmup 2 --profile-cpu --json benchmarks/results/bench_buffers_local.json
-python bench_decode_buffers.py --engine ../myvllm --model ../myvllm/models/Qwen3-0.6B --batches 1 2 4 8 --tokens 32 --repeats 11 --warmup 2 --json benchmarks/results/bench_buffers_32_local.json
+python -m benchmarks.bench_qwen3_graph --engine ../myvllm --model ../myvllm/models/Qwen3-0.6B --batches 1 2 4 8 --tokens 16 --repeats 11 --json benchmarks/results/bench_graph_local.json
+python -m benchmarks.bench_decode_buffers --engine ../myvllm --model ../myvllm/models/Qwen3-0.6B --batches 1 2 4 8 --tokens 16 --repeats 11 --warmup 2 --profile-cpu --json benchmarks/results/bench_buffers_local.json
+python -m benchmarks.bench_decode_buffers --engine ../myvllm --model ../myvllm/models/Qwen3-0.6B --batches 1 2 4 8 --tokens 32 --repeats 11 --warmup 2 --json benchmarks/results/bench_buffers_32_local.json
 ```
 
 `benchmarks/results/bench_qwen3_graph.json` compares previous/measured dispatch in separate eager

@@ -24,7 +24,10 @@ import time
 
 import torch
 from dandan_ops.integrations.myvllm import EngineQuantLinear, install_int4_projections
-from bench_qwen3_engine import route_profile
+if __package__:
+    from .bench_qwen3_engine import route_profile
+else:
+    from bench_qwen3_engine import route_profile
 
 
 def load_prebuilt_extension(engine):
@@ -270,7 +273,7 @@ def run(args):
 
 
 def main():
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     p = argparse.ArgumentParser(__doc__)
     p.add_argument("--engine",default=str(root/"myvllm"))
     p.add_argument("--model",default=str(root/"myvllm/models/Qwen3-0.6B"))

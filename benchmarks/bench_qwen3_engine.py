@@ -112,7 +112,7 @@ def run(args):
 
 
 def main():
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     p = argparse.ArgumentParser(__doc__)
     p.add_argument("--engine",default=str(root/"myvllm"))
     p.add_argument("--model",default=str(root/"myvllm/models/Qwen3-0.6B"))

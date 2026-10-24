@@ -11,7 +11,10 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 import dandan_ops
-from bench_hgemm import measure
+if __package__:
+    from .bench_hgemm import measure
+else:
+    from bench_hgemm import measure
 
 
 @torch.inference_mode()

@@ -17,7 +17,10 @@ import sys
 
 import torch
 
-from bench_qwen3_graph import Case, cpu_profile, load_prebuilt_extension, summary
+if __package__:
+    from .bench_qwen3_graph import Case, cpu_profile, load_prebuilt_extension, summary
+else:
+    from bench_qwen3_graph import Case, cpu_profile, load_prebuilt_extension, summary
 from dandan_ops.integrations.myvllm import EngineQuantLinear, install_int4_projections
 from dandan_ops.integrations.myvllm_decode import install_buffered_decode
 import dandan_ops._dispatch as dispatch
@@ -304,7 +307,7 @@ def run(args):
 
 
 def main():
-    root = Path(__file__).resolve().parent.parent
+    root = Path(__file__).resolve().parents[2]
     parser = argparse.ArgumentParser(__doc__)
     parser.add_argument("--engine", default=str(root / "myvllm"))
     parser.add_argument("--model", default=str(root / "myvllm/models/Qwen3-0.6B"))

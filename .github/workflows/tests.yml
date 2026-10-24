@@ -25,3 +25,8 @@ jobs:
           DANDAN_BUILD_CUDA: '0'
       - name: Test CPU contracts and fallbacks
         run: python -m pytest -q
+      - name: Check benchmark module entry points
+        run: |
+          python -m benchmarks.bench_qwen3_gemm --help
+          python -m benchmarks.bench_flash_inference --help
+          python -m benchmarks.bench_decode_buffers --help

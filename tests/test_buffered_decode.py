@@ -41,7 +41,7 @@ def graph_cuda(monkeypatch):
         pytest.skip("dandan inference kernels require SM80 or newer")
     from dandan_ops._extension import load_extension
     import mini_engine.kernels.cuda_extension as engine_extension
-    from bench_qwen3_graph import load_prebuilt_extension
+    from benchmarks.bench_qwen3_graph import load_prebuilt_extension
 
     monkeypatch.setattr(engine_extension, "load_cuda_extension",
                         engine_extension.load_cuda_extension)

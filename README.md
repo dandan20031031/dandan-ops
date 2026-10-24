@@ -160,15 +160,28 @@ RTX 5080/cu128、固定生成 16 token、忽略 EOS、11 轮随机交错的中�
 ## 项目结构
 
 ```text
-dandan_ops/          Python API、INT4 格式、dispatch、引擎适配
-dandan_ops/csrc/     PyTorch 算子注册、参数校验、CUDA launcher
-kernels/            CUDA kernel 实现
-tests/              数值、边界与可选引擎集成测试
-scripts/            构建、路由选择、wheel 验证
-bench_*.py          benchmark 脚本
-benchmarks/results/ benchmark 原始报告与离线校准数据
-docs/               技术细节与实验记录
+dandan-ops/
+├── dandan_ops/              Python 运行库
+│   ├── csrc/                算子注册、校验与 CUDA launcher
+│   ├── integrations/        可选引擎适配
+│   ├── profiles/            运行时后端路由表
+│   ├── functional.py        函数接口
+│   ├── quantization.py      INT4 格式与量化
+│   └── quantized_linear.py  W4A16 Linear
+├── kernels/                 CUDA kernel 实现
+├── benchmarks/              benchmark 脚本
+│   └── results/             原始报告、离线校准与冒烟记录
+├── tests/                   数值、边界与可选引擎集成测试
+├── scripts/                 构建、路由选择、wheel 验证
+├── docs/                    技术细节与实验记录
+├── .github/workflows/       CI
+├── setup.py
+├── pyproject.toml
+└── LICENSE
 ```
+
+从仓库根目录通过 `python -m benchmarks.bench_qwen3_gemm ...` 运行基准；
+各入口见 [benchmarks/README.md](benchmarks/README.md)。
 
 欢迎带上 GPU、PyTorch/CUDA 版本、shape、后端与最小复现提交 Issue 或 Pull Request。
 贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。

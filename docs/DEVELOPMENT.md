@@ -117,8 +117,8 @@ myvllm 的 decode 使用 `[num_blocks, block_size, Hkv, D]` 分页 cache，
 性能验证命令：
 
 ```powershell
-..\myvllm\.venv\Scripts\python.exe bench_flash_inference.py --shapes 128x128 1024x1024 1x1024 1x4096
-..\myvllm\.venv\Scripts\python.exe bench_flash_inference.py --Q 128 --K 1024 --query-start 896 --json benchmarks/results/bench_flash_suffix.json
+..\myvllm\.venv\Scripts\python.exe -m benchmarks.bench_flash_inference --shapes 128x128 1024x1024 1x1024 1x4096
+..\myvllm\.venv\Scripts\python.exe -m benchmarks.bench_flash_inference --Q 128 --K 1024 --query-start 896 --json benchmarks/results/bench_flash_suffix.json
 ```
 
 首轮 RTX 5080 / PyTorch 2.9.1+cu128 验证数据（B=1、Hq=16、Hkv=8、D=128，单位 μs）：
@@ -230,14 +230,14 @@ TMA FP16 直写已减少缓冲和 launch，但其计算主循环仍可能主导�
 M=1/2/4/8 的新 small 路径仍有收益；该数据不用于与 warm-cache 表混算加速比。
 
 ```powershell
-..\myvllm\.venv\Scripts\python.exe bench_qwen3_gemm.py --extra small --json benchmarks/results/bench_qwen3_local.json
+..\myvllm\.venv\Scripts\python.exe -m benchmarks.bench_qwen3_gemm --extra small --json benchmarks/results/bench_qwen3_local.json
 ..\myvllm\.venv\Scripts\python.exe scripts\select_gemm_routes.py benchmarks/results/bench_qwen3_local.json --output dandan_ops\profiles\qwen3_sm120_cu128.json
 # 新进程导入后读取新 profile；换 GPU、PyTorch/CUDA 时不会沿用不匹配的表。
-..\myvllm\.venv\Scripts\python.exe bench_qwen3_gemm.py --ms 1 2 4 8 --extra small --cold --batch 1 --json benchmarks/results/bench_qwen3_cold.json
-..\myvllm\.venv\Scripts\python.exe bench_qwen3_engine.py --warmup 3 --repeats 21 --tokens 32 --json benchmarks/results/bench_qwen3_engine_long.json
+..\myvllm\.venv\Scripts\python.exe -m benchmarks.bench_qwen3_gemm --ms 1 2 4 8 --extra small --cold --batch 1 --json benchmarks/results/bench_qwen3_cold.json
+..\myvllm\.venv\Scripts\python.exe -m benchmarks.bench_qwen3_engine --warmup 3 --repeats 21 --tokens 32 --json benchmarks/results/bench_qwen3_engine_long.json
 ```
 
-`bench_qwen3_engine.py` 使用本地真实权重、相同 INT4 状态对比旧默认调度与新 profile，
+`benchmarks/bench_qwen3_engine.py` 使用本地真实权重、相同 INT4 状态对比旧默认调度与新 profile，
 只在基准进程中装入适配器，不编辑引擎文件。它要求已构建的引擎 CUDA 扩展，
 不触发 JIT；测量单请求 eager TPOT，包含 Python、采样、同步和 KV 更新，未使用 CUDA Graph。
 
@@ -248,7 +248,7 @@ M=1/2/4/8 的新 small 路径仍有收益；该数据不用于与 warm-cache 表
 
 ## 真实模型 CUDA Graph 对照
 
-`bench_qwen3_graph.py` 复用引擎现有 `DecodeGraphManager`，在同一份真实 Qwen3-0.6B 权重和
+`benchmarks/bench_qwen3_graph.py` 复用引擎现有 `DecodeGraphManager`，在同一份真实 Qwen3-0.6B 权重和
 INT4 状态上对比旧默认 / 新实测后端。两种后端各自捕获独立图：捕获后切换 Python profile
 不会改变图中的 kernel。引擎源码不参与本轮修改，加载既有扩展，不触发 JIT。
 
@@ -284,7 +284,7 @@ logits 上逐位一致。跨新旧 kernel，B=1 仍逐位一致；B>1 的归约�
 batch、scratch 与 live KV 隔离，并检查 inactive KV 不变。
 
 ```powershell
-..\myvllm\.venv\Scripts\python.exe bench_qwen3_graph.py --batches 1 2 4 8 --tokens 16 --repeats 11 --warmup 2 --validate-steps 8 --profile-cpu --json benchmarks/results/bench_qwen3_graph.json
+..\myvllm\.venv\Scripts\python.exe -m benchmarks.bench_qwen3_graph --batches 1 2 4 8 --tokens 16 --repeats 11 --warmup 2 --validate-steps 8 --profile-cpu --json benchmarks/results/bench_qwen3_graph.json
 ```
 
 原始样本、CPU 调用统计、实际路由和误差都在 `benchmarks/results/bench_qwen3_graph.json`；这是本机短上下文
@@ -330,7 +330,7 @@ finally:
 每个 bucket 的 pinned/GPU slab 各占 `8*B*(2+W)` 字节。`prepare()` 可在启动阶段完成
 分配和 capture，正式计时只包含 replay 路径。更换权重、stream 或 scratch 时应创建新 runtime。
 
-`bench_decode_buffers.py` 在同一份真实 Qwen3-0.6B INT4 权重上，用独立 KV/cache/runtime/Graph
+`benchmarks/bench_decode_buffers.py` 在同一份真实 Qwen3-0.6B INT4 权重上，用独立 KV/cache/runtime/Graph
 对比当前原生元数据路径和缓冲路径，双方使用相同的实测 GEMM routes。
 原生路径已经执行一次批量 token D2H；本轮收益仅归因于元数据准备、分配和上传路径变化。
 两路均关闭 prefix cache、greedy、忽略 EOS，固定生成 16 token；包含调度、采样、KV 写入
@@ -353,8 +353,8 @@ RTX 5080、PyTorch 2.9.1+cu128、FP16 激活、INT4 权重，每组 2 次预热�
 原始数据分别在 `benchmarks/results/bench_decode_buffers.json` 和 `benchmarks/results/bench_decode_buffers_32.json`。
 
 ```powershell
-..\myvllm\.venv\Scripts\python.exe bench_decode_buffers.py --batches 1 2 4 8 --tokens 16 --repeats 11 --warmup 2 --profile-cpu --json benchmarks/results/bench_decode_buffers.json
-..\myvllm\.venv\Scripts\python.exe bench_decode_buffers.py --batches 1 2 4 8 --tokens 32 --repeats 11 --warmup 2 --json benchmarks/results/bench_decode_buffers_32.json
+..\myvllm\.venv\Scripts\python.exe -m benchmarks.bench_decode_buffers --batches 1 2 4 8 --tokens 16 --repeats 11 --warmup 2 --profile-cpu --json benchmarks/results/bench_decode_buffers.json
+..\myvllm\.venv\Scripts\python.exe -m benchmarks.bench_decode_buffers --batches 1 2 4 8 --tokens 32 --repeats 11 --warmup 2 --json benchmarks/results/bench_decode_buffers_32.json
 ```
 
 JSON 保存逐轮样本、token 一致性、元数据上传计数、固定地址、KV 释放检查、环境和源码 hash。
@@ -363,7 +363,7 @@ JSON 保存逐轮样本、token 一致性、元数据上传计数、固定地址
 ## 历史性能对照（cu130，保留记录）
 
 RTX 5080、cu130、N=K=4096、group_size=64。单位 μs，越小越快。
-`bench_hgemm.py` 使用 CUDA Graph replay，4 次调用/graph，5 次 warmup、15 轮打乱测量顺序。
+`benchmarks/bench_hgemm.py` 使用 CUDA Graph replay，4 次调用/graph，5 次 warmup、15 轮打乱测量顺序。
 原始样本和逐路径误差见 `benchmarks/results/bench_hgemm.json`。FP16 HGEMM 列使用已是 `[N,K]` 的权重。
 
 | M | PyTorch FP16 | V8 HGEMM | V10 TMA | 旧 W4A16 naive | 新 W4A16 auto | 旧/新 |
@@ -385,7 +385,7 @@ RTX 5080、cu130、N=K=4096、group_size=64。单位 μs，越小越快。
 尤其对连续的普通 `[K,N]` 权重，每次拷贝布局代价很大，建议预先存为 `[N,K]`。
 
 ```powershell
-python bench_hgemm.py --warmup 5 --repeats 15 --batch 4 --json benchmarks/results/bench_hgemm.json
+python -m benchmarks.bench_hgemm --warmup 5 --repeats 15 --batch 4 --json benchmarks/results/bench_hgemm.json
 ```
 
 ## 其他现有 API

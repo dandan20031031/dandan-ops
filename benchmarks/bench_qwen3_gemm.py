@@ -13,7 +13,10 @@ from pathlib import Path
 
 import torch
 import dandan_ops as ops
-from bench_hgemm import measure
+if __package__:
+    from .bench_hgemm import measure
+else:
+    from bench_hgemm import measure
 
 
 def measure_cold(paths, warmup, repeats, batch):
@@ -63,7 +66,7 @@ def run(args):
               "config": vars(args), "model_config": config, "results": []}
     if args.cold:
         report["timing_mode"] = "CUDA Graph GPU latency per call after 128 MiB L2 eviction; eviction outside timing"
-    root = Path(__file__).resolve().parent
+    root = Path(__file__).resolve().parents[1]
     sources = ["kernels/w4a16_small.cuh", "kernels/hgemm_pipeline.cuh", "kernels/hgemm_tma.cuh",
                "dandan_ops/csrc/hgemm.cu", "dandan_ops/csrc/hgemm_tma.cu"]
     report["source_sha256"] = {name: hashlib.sha256((root/name).read_bytes()).hexdigest()
@@ -113,7 +116,7 @@ def run(args):
 
 def main():
     p = argparse.ArgumentParser(__doc__)
-    p.add_argument("--config", default=str(Path(__file__).resolve().parent.parent / "myvllm/models/Qwen3-0.6B/config.json"))
+    p.add_argument("--config", default=str(Path(__file__).resolve().parents[2] / "myvllm/models/Qwen3-0.6B/config.json"))
     p.add_argument("--ms", nargs="+", type=int, default=[1,2,4,8,32,128,512])
     p.add_argument("--projections", nargs="+")
     p.add_argument("--extra", nargs="*", default=[])

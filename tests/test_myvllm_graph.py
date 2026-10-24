@@ -37,7 +37,7 @@ def graph_cuda(monkeypatch):
 
     from dandan_ops._extension import load_extension
     import mini_engine.kernels.cuda_extension as engine_extension
-    from bench_qwen3_graph import load_prebuilt_extension
+    from benchmarks.bench_qwen3_graph import load_prebuilt_extension
 
     # Register the original callable for restoration before the helper changes
     # the process-local loader.  Never invoke the original build-on-demand path.
