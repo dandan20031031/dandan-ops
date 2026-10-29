@@ -124,7 +124,7 @@ def main():
     p.add_argument("--warmup", type=int, default=5)
     p.add_argument("--repeats", type=int, default=21)
     p.add_argument("--batch", type=int, default=8)
-    p.add_argument("--json", default="benchmarks/results/bench_qwen3_gemm.json")
+    p.add_argument("--json", default="build/benchmarks/bench_qwen3_gemm.json")
     args = p.parse_args()
     if min(*args.ms, args.warmup, args.repeats, args.batch) < 1:
         p.error("counts must be positive")

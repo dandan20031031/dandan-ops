@@ -117,6 +117,41 @@ def test_model_quantization_failure_does_not_partially_mutate():
 
 
 @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+@torch.inference_mode()
+def test_elementwise_library_in_tiny_qwen_prefill_and_cached_decode(monkeypatch, dtype):
+    """Replace only this process's small ops; engine source and cache stay native."""
+    import mini_engine.model.native_qwen3 as module
+    torch.manual_seed(27)
+    cfg = Qwen3Config(53, 32, 64, 2, 4, 2, 16, max_position_embeddings=128)
+    model = NativeQwen3(cfg, "math").cuda().to(dtype).eval()
+    blocks = [5, 1, 6, 0, 8, 9, 10, 11]
+    prompt = torch.tensor([1, 2, 3, 4, 5], device="cuda")
+    reference_cache = model.create_cache(16, 4)
+    reference = [model(prompt, reference_cache, blocks).clone()]
+    tokens = []
+    for position in range(5, 8):
+        token = reference[-1][-1].argmax().view(1)
+        tokens.append(token.clone())
+        reference.append(model(token, reference_cache, blocks, position).clone())
+    def forced(fn):
+        def call(*args, backend="torch", **kwargs):
+            return fn(*args, backend="cuda", **kwargs)
+        return call
+    for name in ("rms_norm", "residual_rms_norm", "silu_and_mul"):
+        monkeypatch.setattr(module, name, forced(getattr(ops, name)))
+    cache = model.create_cache(16, 4)
+    actual = [model(prompt, cache, blocks).clone()]
+    for position, token in zip(range(5, 8), tokens):
+        assert torch.equal(actual[-1][-1].argmax().view(1), token)
+        actual.append(model(token, cache, blocks, position).clone())
+    tolerance = 3e-2 if dtype == torch.bfloat16 else 3e-3
+    for a, b in zip(actual, reference):
+        torch.testing.assert_close(a, b, atol=tolerance, rtol=tolerance)
+        assert torch.equal(a[-1].argmax(), b[-1].argmax())
+
+
+@pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA required")
 @pytest.mark.parametrize("quantized", [False, True])
 @torch.inference_mode()
 def test_d128_flash_prefill_with_engine_paged_decode(monkeypatch, quantized):

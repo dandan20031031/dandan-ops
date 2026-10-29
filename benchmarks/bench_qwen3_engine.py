@@ -120,7 +120,7 @@ def main():
     p.add_argument("--tokens",type=int,default=16)
     p.add_argument("--warmup",type=int,default=1)
     p.add_argument("--repeats",type=int,default=3)
-    p.add_argument("--json",default="benchmarks/results/bench_qwen3_engine.json")
+    p.add_argument("--json",default="build/benchmarks/bench_qwen3_engine.json")
     args = p.parse_args()
     if min(args.tokens,args.warmup,args.repeats) < 1: p.error("counts must be positive")
     run(args)

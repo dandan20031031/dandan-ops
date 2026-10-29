@@ -167,7 +167,10 @@ class QuantizedLinear(torch.nn.Module):
     def execution_info(self, x):
         route, reason = _select_backend(x, self.scales, self.group_size, self.backend, self.out_features)
         return {"requested_backend": self.backend, "implementation": route,
-                "fallback_reason": reason, "format_version": FORMAT_VERSION,
+                "fallback_reason": reason, "reason": reason or "selected packed inference backend",
+                "input_copies": [i for i, t in enumerate((x, self.packed_weight, self.scales, self.zeros))
+                                 if not t.is_contiguous()] if route != "reference" else [],
+                "format_version": FORMAT_VERSION,
                 "activation_dtype": str(x.dtype), "group_size": self.group_size}
 
     @property

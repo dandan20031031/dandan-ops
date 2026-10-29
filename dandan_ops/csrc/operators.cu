@@ -9,6 +9,7 @@
 #include <cuda_fp16.h>
 #include <cstdint>
 #include "gemm_checks.h"
+#include "elementwise_checks.h"
 
 // The following are the final kernels selected from the learning tree.
 #include "../../kernels/softmax_v5_twopass.cuh"
@@ -136,11 +137,12 @@ at::Tensor w4a16_gemv(const at::Tensor& x, const at::Tensor& packed_w,
 }
 
 at::Tensor softmax(const at::Tensor& x) {
+    check_elementwise(x);
     TORCH_CHECK(x.is_cuda() && x.scalar_type() == at::kFloat,
                 "softmax CUDA backend expects CUDA FP32");
-    TORCH_CHECK(x.dim() == 2 && x.size(1) % 4 == 0,
-                "softmax expects [M,N] with N divisible by 4");
+    TORCH_CHECK(x.dim() == 2 && x.size(1) <= INT_MAX, "softmax expects [M,N]");
     auto y = at::empty_like(x);
+    if (x.numel() == 0) return y;
     c10::cuda::CUDAGuard guard(x.device());
     dim3 grid(static_cast<unsigned>(x.size(0)));
     softmax_v5_twopass<<<grid, 256, 0, c10::cuda::getCurrentCUDAStream().stream()>>>(
@@ -151,6 +153,10 @@ at::Tensor softmax(const at::Tensor& x) {
 }
 
 at::Tensor rms_norm(const at::Tensor& x, const at::Tensor& weight, double eps) {
+    check_norm(x, weight, eps);
+    TORCH_CHECK(reinterpret_cast<uintptr_t>(x.data_ptr()) % 16 == 0 &&
+                reinterpret_cast<uintptr_t>(weight.data_ptr()) % 16 == 0,
+                "FP32 RMSNorm requires 16-byte alignment");
     TORCH_CHECK(x.is_cuda() && weight.is_cuda(), "rms_norm expects CUDA tensors");
     TORCH_CHECK(x.scalar_type() == at::kFloat && weight.scalar_type() == at::kFloat,
                 "rms_norm expects FP32 tensors");
@@ -158,6 +164,7 @@ at::Tensor rms_norm(const at::Tensor& x, const at::Tensor& weight, double eps) {
                     x.size(1) % 4 == 0, "invalid RMSNorm shape");
     auto y = at::empty_like(x);
     c10::cuda::CUDAGuard guard(x.device());
+    if (x.numel() == 0) return y;
     rmsnorm_v3_float4<<<static_cast<unsigned>(x.size(0)), 256, 0,
                         c10::cuda::getCurrentCUDAStream().stream()>>>(
         x.data_ptr<float>(), weight.data_ptr<float>(), y.data_ptr<float>(),
@@ -168,6 +175,8 @@ at::Tensor rms_norm(const at::Tensor& x, const at::Tensor& weight, double eps) {
 
 at::Tensor layer_norm(const at::Tensor& x, const at::Tensor& weight,
                       const at::Tensor& bias, double eps) {
+    check_norm(x, weight, eps);
+    check_elementwise(x, {bias});
     TORCH_CHECK(x.is_cuda() && weight.is_cuda() && bias.is_cuda(),
                 "layer_norm expects CUDA tensors");
     TORCH_CHECK(x.scalar_type() == at::kFloat && weight.scalar_type() == at::kFloat &&
@@ -177,6 +186,7 @@ at::Tensor layer_norm(const at::Tensor& x, const at::Tensor& weight,
                 "invalid LayerNorm shape");
     auto y = at::empty_like(x);
     c10::cuda::CUDAGuard guard(x.device());
+    if (x.numel() == 0) return y;
     layernorm_v2_warpshuffle<<<static_cast<unsigned>(x.size(0)), 256, 0,
                                c10::cuda::getCurrentCUDAStream().stream()>>>(
         x.data_ptr<float>(), weight.data_ptr<float>(), bias.data_ptr<float>(), y.data_ptr<float>(),
@@ -187,6 +197,8 @@ at::Tensor layer_norm(const at::Tensor& x, const at::Tensor& weight,
 
 at::Tensor batch_norm_infer(const at::Tensor& x, const at::Tensor& a,
                             const at::Tensor& b) {
+    check_norm(x, a, 0.0);
+    check_elementwise(x, {b});
     TORCH_CHECK(x.is_cuda() && a.is_cuda() && b.is_cuda(),
                 "batch_norm_infer expects CUDA tensors");
     TORCH_CHECK(x.scalar_type() == at::kFloat && a.scalar_type() == at::kFloat &&
@@ -195,6 +207,7 @@ at::Tensor batch_norm_infer(const at::Tensor& x, const at::Tensor& a,
                     x.size(1) == a.size(0) && a.sizes() == b.sizes(), "invalid BatchNorm shape");
     auto y = at::empty_like(x);
     c10::cuda::CUDAGuard guard(x.device());
+    if (x.numel() == 0) return y;
     batchnorm_v2_rowblock<<<static_cast<unsigned>(x.size(0)), 256, 0,
                             c10::cuda::getCurrentCUDAStream().stream()>>>(
         x.data_ptr<float>(), a.data_ptr<float>(), b.data_ptr<float>(), y.data_ptr<float>(),

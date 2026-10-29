@@ -57,7 +57,7 @@ if os.environ.get("DANDAN_BUILD_CUDA", "1") != "0" and torch.version.cuda is not
     driver_dirs = [str(p) for p in driver_candidates if (p / ("cuda.lib" if os.name == "nt" else "libcuda.so")).is_file()]
     ext_modules.append(CUDAExtension(
         name="dandan_ops._C",
-        sources=[str(Path("dandan_ops/csrc") / name) for name in ("operators.cu", "hgemm.cu", "hgemm_tma.cu", "flash_inference.cu")],
+        sources=[str(Path("dandan_ops/csrc") / name) for name in ("operators.cu", "hgemm.cu", "hgemm_tma.cu", "flash_inference.cu", "elementwise.cu")],
         libraries=["cuda"],
         include_dirs=[str(root)],
         library_dirs=driver_dirs[:1],

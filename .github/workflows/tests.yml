@@ -29,4 +29,6 @@ jobs:
         run: |
           python -m benchmarks.bench_qwen3_gemm --help
           python -m benchmarks.bench_flash_inference --help
+          python -m benchmarks.bench_attention_layouts --help
           python -m benchmarks.bench_decode_buffers --help
+          python -m benchmarks.bench_elementwise --help

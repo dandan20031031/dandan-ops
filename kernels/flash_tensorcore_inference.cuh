@@ -5,6 +5,8 @@
 #include <cuda_runtime.h>
 #include <cuda_pipeline.h>
 #include <cuda_fp16.h>
+#include <cuda_bf16.h>
+#include <type_traits>
 #include <cstdint>
 #include <math.h>
 
@@ -22,39 +24,60 @@ __device__ __forceinline__ void ldmatrix_x4_trans(
         : "=r"(r0), "=r"(r1), "=r"(r2), "=r"(r3) : "r"(address));
 }
 
+template<typename T>
 __device__ __forceinline__ void mma_m16n8k16(
     float& d0, float& d1, float& d2, float& d3,
     uint32_t a0, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t b0, uint32_t b1) {
-    asm volatile(
+    if constexpr (std::is_same<T, half>::value) {
+      asm volatile(
         "mma.sync.aligned.m16n8k16.row.col.f32.f16.f16.f32 "
         "{%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};\n"
         : "+f"(d0), "+f"(d1), "+f"(d2), "+f"(d3)
         : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(b0), "r"(b1));
+    } else {
+      asm volatile(
+        "mma.sync.aligned.m16n8k16.row.col.f32.bf16.bf16.f32 "
+        "{%0,%1,%2,%3}, {%4,%5,%6,%7}, {%8,%9}, {%0,%1,%2,%3};\n"
+        : "+f"(d0), "+f"(d1), "+f"(d2), "+f"(d3)
+        : "r"(a0), "r"(a1), "r"(a2), "r"(a3), "r"(b0), "r"(b1));
+    }
 }
 
 __device__ __forceinline__ uint32_t shared_address(const void* p) {
     return static_cast<uint32_t>(__cvta_generic_to_shared(p));
 }
 
-__device__ __forceinline__ uint32_t pack_half2(float lo, float hi) {
-    return uint32_t(__half_as_ushort(__float2half_rn(lo))) |
-           (uint32_t(__half_as_ushort(__float2half_rn(hi))) << 16);
+template<typename T> __device__ __forceinline__ T from_float(float value);
+template<> __device__ __forceinline__ half from_float<half>(float value) { return __float2half_rn(value); }
+template<> __device__ __forceinline__ __nv_bfloat16 from_float<__nv_bfloat16>(float value) { return __float2bfloat16_rn(value); }
+template<typename T> __device__ __forceinline__ float as_float(T value);
+template<> __device__ __forceinline__ float as_float<half>(half value) { return __half2float(value); }
+template<> __device__ __forceinline__ float as_float<__nv_bfloat16>(__nv_bfloat16 value) { return __bfloat162float(value); }
+
+template<typename T>
+__device__ __forceinline__ uint32_t pack_pair(float lo, float hi) {
+    if constexpr (std::is_same<T, half>::value)
+        return uint32_t(__half_as_ushort(__float2half_rn(lo))) |
+               (uint32_t(__half_as_ushort(__float2half_rn(hi))) << 16);
+    else
+        return uint32_t(__bfloat16_as_ushort(__float2bfloat16_rn(lo))) |
+               (uint32_t(__bfloat16_as_ushort(__float2bfloat16_rn(hi))) << 16);
 }
 
-template<int Bc, int D>
+template<int Bc, int D, typename T>
 __device__ __forceinline__ void copy_kv(
-    const half* k, const half* v, half* ks, half* vs,
-    size_t base, int start, int length, int buffer) {
+    const T* k, const T* v, T* ks, T* vs,
+    size_t base, int start, int length, int buffer, size_t stride) {
     constexpr int DP = D + 8;
     constexpr int PACKS = D / 8;
     for (int i = threadIdx.x; i < Bc * PACKS; i += blockDim.x) {
         const int row = i / PACKS, col = (i % PACKS) * 8;
         const bool valid = start + row < length;
         // Use an in-bounds address even for zero-fill cp.async.
-        const half* kg = valid ? k + base + size_t(start + row) * D + col : k;
-        const half* vg = valid ? v + base + size_t(start + row) * D + col : v;
-        half* kd = ks + size_t(buffer) * Bc * DP + row * DP + col;
-        half* vd = vs + size_t(buffer) * Bc * DP + row * DP + col;
+        const T* kg = valid ? k + base + size_t(start + row) * stride + col : k;
+        const T* vg = valid ? v + base + size_t(start + row) * stride + col : v;
+        T* kd = ks + size_t(buffer) * Bc * DP + row * DP + col;
+        T* vd = vs + size_t(buffer) * Bc * DP + row * DP + col;
         __pipeline_memcpy_async(kd, kg, 16, valid ? 0 : 16);
         __pipeline_memcpy_async(vd, vg, 16, valid ? 0 : 16);
     }
@@ -63,10 +86,12 @@ __device__ __forceinline__ void copy_kv(
 // Four warps, 16 query rows per warp. D=128 uses fewer accumulator registers
 // than the old 32-rows-per-warp D=64 experiment. Q stays in registers; K/V
 // uses two shared-memory buffers. No [Q,K] score tensor is materialized.
-template<bool CAUSAL, int Br = 64, int Bc = 32, int D = 128>
+template<bool CAUSAL, int Br = 64, int Bc = 32, int D = 128, typename T = half, bool VARLEN = false>
 __global__ void __launch_bounds__(128) prefill(
-    const half* q, const half* k, const half* v, half* out,
-    int Q, int K, int Hq, int Hkv, int query_start, float scale) {
+    const T* q, const T* k, const T* v, T* out,
+    int Q, int K, int Hq, int Hkv, int query_start, float scale,
+    int window_size, float softcap, const int* cu_q = nullptr,
+    const int* cu_k = nullptr, const int* starts = nullptr, int total_q = 0) {
     static_assert(Br == 64 && Bc % 16 == 0 && D % 16 == 0, "invalid flash tile");
     constexpr int DP = D + 8, KM = D / 16, NM = Bc / 8;
     constexpr int KP = Bc / 16, ND = D / 8;
@@ -75,21 +100,40 @@ __global__ void __launch_bounds__(128) prefill(
     const int q_start = blockIdx.x * Br;
     const int bh = blockIdx.y;
     const int batch = bh / Hq, hq = bh % Hq, hkv = hq / (Hq / Hkv);
-    const size_t q_base = size_t(bh) * Q * D;
-    const size_t kv_base = (size_t(batch) * Hkv + hkv) * K * D;
+    size_t q_base, kv_base;
+    size_t q_stride = D, kv_stride = D;
+    if constexpr (VARLEN) {
+        // High-level plans validate values on CPU. Bound raw device metadata
+        // too, so malformed offsets cannot issue out-of-range memory reads.
+        if (cu_q[batch] < 0 || cu_q[batch+1] < cu_q[batch] || cu_q[batch+1] > total_q ||
+            cu_k[batch] < 0 || cu_k[batch+1] < cu_k[batch] || cu_k[batch+1] > K) return;
+        Q = cu_q[batch + 1] - cu_q[batch];
+        K = cu_k[batch + 1] - cu_k[batch];
+        query_start = starts[batch];
+        if (query_start < 0 || query_start > K - Q) return;
+        q_base = size_t(cu_q[batch]) * Hq * D + hq * D;
+        kv_base = size_t(cu_k[batch]) * Hkv * D + hkv * D;
+        q_stride = size_t(Hq) * D; kv_stride = size_t(Hkv) * D;
+    } else {
+        q_base = size_t(bh) * Q * D;
+        kv_base = (size_t(batch) * Hkv + hkv) * K * D;
+    }
+    if (q_start >= Q) return;
     const int limit = CAUSAL ? min(K, query_start + min(q_start + Br, Q)) : K;
-    const int tiles = (limit + Bc - 1) / Bc;
+    const int first_tile = CAUSAL && window_size > 0
+        ? max(0, query_start + q_start - window_size + 1) / Bc : 0;
+    const int tiles = (limit + Bc - 1) / Bc - first_tile;
     const float sl2e = scale * 1.4426950408889634f;
 
-    extern __shared__ half flash_smem[];
-    half* ks = flash_smem;
-    half* vs = ks + 2 * Bc * DP;
-    half* qs = vs + 2 * Bc * DP;
+    extern __shared__ __align__(16) unsigned char flash_smem_raw[];
+    T* ks = reinterpret_cast<T*>(flash_smem_raw);
+    T* vs = ks + 2 * Bc * DP;
+    T* qs = vs + 2 * Bc * DP;
     for (int i = threadIdx.x; i < Br * (D / 8); i += blockDim.x) {
         const int row = i / (D / 8), col = (i % (D / 8)) * 8;
         uint4* dst = reinterpret_cast<uint4*>(qs + row * DP + col);
         *dst = q_start + row < Q
-            ? *reinterpret_cast<const uint4*>(q + q_base + size_t(q_start + row) * D + col)
+            ? *reinterpret_cast<const uint4*>(q + q_base + size_t(q_start + row) * q_stride + col)
             : make_uint4(0, 0, 0, 0);
     }
     __syncthreads();
@@ -106,20 +150,20 @@ __global__ void __launch_bounds__(128) prefill(
     float partial_sum[2] = {0.0f, 0.0f};
     float acc[ND][4] = {};
 
-    copy_kv<Bc, D>(k, v, ks, vs, kv_base, 0, K, 0);
+    copy_kv<Bc, D, T>(k, v, ks, vs, kv_base, first_tile * Bc, K, 0, kv_stride);
     __pipeline_commit();
     for (int j = 0; j < tiles; ++j) {
-        const int start = j * Bc, buffer = j & 1;
+        const int start = (j + first_tile) * Bc, buffer = j & 1;
         if (j + 1 < tiles) {
-            copy_kv<Bc, D>(k, v, ks, vs, kv_base, start + Bc, K, buffer ^ 1);
+            copy_kv<Bc, D, T>(k, v, ks, vs, kv_base, start + Bc, K, buffer ^ 1, kv_stride);
             __pipeline_commit();
             __pipeline_wait_prior(1);
         } else {
             __pipeline_wait_prior(0);
         }
         __syncthreads();
-        half* kj = ks + size_t(buffer) * Bc * DP;
-        half* vj = vs + size_t(buffer) * Bc * DP;
+        T* kj = ks + size_t(buffer) * Bc * DP;
+        T* vj = vs + size_t(buffer) * Bc * DP;
         uint32_t kf[KM][NM][2];
         #pragma unroll
         for (int kk = 0; kk < KM; ++kk)
@@ -135,7 +179,7 @@ __global__ void __launch_bounds__(128) prefill(
         for (int ni = 0; ni < NM; ++ni)
             #pragma unroll
             for (int kk = 0; kk < KM; ++kk)
-                mma_m16n8k16(scores[ni][0], scores[ni][1], scores[ni][2], scores[ni][3],
+                mma_m16n8k16<T>(scores[ni][0], scores[ni][1], scores[ni][2], scores[ni][3],
                     qf[kk][0], qf[kk][1], qf[kk][2], qf[kk][3], kf[kk][ni][0], kf[kk][ni][1]);
 
         // Full blocks strictly before every query row need only scale.
@@ -148,8 +192,13 @@ __global__ void __launch_bounds__(128) prefill(
                 #pragma unroll
                 for (int c = 0; c < 2; ++c) {
                     const int col = start + ni * 8 + 2 * t + c;
-                    const bool masked = col >= K || (diagonal && col > query_start + row);
-                    scores[ni][2*h+c] = masked ? -INFINITY : scores[ni][2*h+c] * sl2e;
+                    const bool masked = col >= K || (diagonal && col > query_start + row)
+                        || (window_size > 0 && col < query_start + row - window_size + 1);
+                    const float raw = scores[ni][2*h+c];
+                    const float logit = softcap > 0.0f
+                        ? softcap * tanhf(raw * scale / softcap) * 1.4426950408889634f
+                        : raw * sl2e;
+                    scores[ni][2*h+c] = masked ? -INFINITY : logit;
                 }
             }
         float next_max[2], correction[2], max_for_exp[2];
@@ -175,10 +224,10 @@ __global__ void __launch_bounds__(128) prefill(
         uint32_t pf[KP][4];
         #pragma unroll
         for (int kk = 0; kk < KP; ++kk) {
-            pf[kk][0] = pack_half2(scores[2*kk][0], scores[2*kk][1]);
-            pf[kk][1] = pack_half2(scores[2*kk][2], scores[2*kk][3]);
-            pf[kk][2] = pack_half2(scores[2*kk+1][0], scores[2*kk+1][1]);
-            pf[kk][3] = pack_half2(scores[2*kk+1][2], scores[2*kk+1][3]);
+            pf[kk][0] = pack_pair<T>(scores[2*kk][0], scores[2*kk][1]);
+            pf[kk][1] = pack_pair<T>(scores[2*kk][2], scores[2*kk][3]);
+            pf[kk][2] = pack_pair<T>(scores[2*kk+1][0], scores[2*kk+1][1]);
+            pf[kk][3] = pack_pair<T>(scores[2*kk+1][2], scores[2*kk+1][3]);
         }
         #pragma unroll
         for (int nn = 0; nn < ND; ++nn) {
@@ -199,7 +248,7 @@ __global__ void __launch_bounds__(128) prefill(
         for (int nn = 0; nn < ND; ++nn)
             #pragma unroll
             for (int kk = 0; kk < KP; ++kk)
-                mma_m16n8k16(acc[nn][0], acc[nn][1], acc[nn][2], acc[nn][3],
+                mma_m16n8k16<T>(acc[nn][0], acc[nn][1], acc[nn][2], acc[nn][3],
                     pf[kk][0], pf[kk][1], pf[kk][2], pf[kk][3], vf[kk][nn][0], vf[kk][nn][1]);
         running_max[0] = next_max[0]; running_max[1] = next_max[1];
         __syncthreads();
@@ -214,9 +263,9 @@ __global__ void __launch_bounds__(128) prefill(
         if (row < Q) {
             #pragma unroll
             for (int nn = 0; nn < ND; ++nn) {
-                const size_t off = q_base + size_t(row) * D + nn * 8 + 2 * t;
-                out[off] = __float2half_rn(acc[nn][2*h] * inv);
-                out[off+1] = __float2half_rn(acc[nn][2*h+1] * inv);
+                const size_t off = q_base + size_t(row) * q_stride + nn * 8 + 2 * t;
+                out[off] = from_float<T>(acc[nn][2*h] * inv);
+                out[off+1] = from_float<T>(acc[nn][2*h+1] * inv);
             }
         }
     }

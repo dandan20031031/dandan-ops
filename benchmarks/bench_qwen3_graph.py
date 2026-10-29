@@ -18,6 +18,7 @@ import os
 from pathlib import Path
 import pstats
 import random
+import re
 import statistics
 import sys
 import time
@@ -32,18 +33,36 @@ else:
 
 def load_prebuilt_extension(engine):
     import mini_engine.kernels.cuda_extension as extension
-    path = Path(engine) / "build/torch_extensions/paged_attention/miniqwen_paged_attention.pyd"
-    if not path.is_file():
-        raise FileNotFoundError(f"build engine CUDA extension first: {path}")
-    name = "miniqwen_paged_attention"
-    module = sys.modules.get(name)
-    if module is None:
-        spec = importlib.util.spec_from_file_location(name, path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        sys.modules[name] = module
-    extension.load_cuda_extension = lambda *a, **kw: module
-    return path
+    engine = Path(engine)
+    build = engine / "build/torch_extensions/paged_attention"
+    bindings = engine / "mini_engine/kernels/csrc/bindings.cpp"
+    required = set(re.findall(r'\bm\.def\(\s*"([^"]+)"', bindings.read_text(encoding="utf-8")))
+    candidates = sorted(build.glob("*/miniqwen_paged_attention_*.pyd"),
+                        key=lambda p: p.stat().st_mtime, reverse=True)
+    candidates.append(build / "miniqwen_paged_attention.pyd")
+    rejected = []
+    for path in candidates:
+        if not path.is_file():
+            continue
+        name = path.stem
+        module = sys.modules.get(name)
+        if module is None:
+            try:
+                spec = importlib.util.spec_from_file_location(name, path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+            except (ImportError, OSError) as exc:
+                rejected.append(f"{path.name}: {exc}")
+                continue
+            sys.modules[name] = module
+        missing = required.difference(dir(module))
+        if missing:
+            rejected.append(f"{path.name}: missing {', '.join(sorted(missing))}")
+            continue
+        extension.load_cuda_extension = lambda *a, **kw: module
+        return path
+    detail = "; ".join(rejected) or "no prebuilt binary found"
+    raise FileNotFoundError(f"build a compatible engine CUDA extension first: {build}; {detail}")
 
 
 class DisabledPrefixCache:
@@ -285,7 +304,7 @@ def main():
     p.add_argument("--validate-steps",type=int,default=8)
     p.add_argument("--prompt",default="用一句话解释 KV Cache。")
     p.add_argument("--profile-cpu",action="store_true")
-    p.add_argument("--json",default="benchmarks/results/bench_qwen3_graph.json")
+    p.add_argument("--json",default="build/benchmarks/bench_qwen3_graph.json")
     args = p.parse_args()
     if min(*args.batches,args.warmup,args.repeats,args.validate_steps,args.block_size) < 1 or args.tokens < 2:
         p.error("counts must be positive, tokens>=2")

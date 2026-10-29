@@ -1,76 +1,43 @@
-// layernorm_v2_warpshuffle.cuh    LayerNorm V2 warp shuffle      
-//
-//   v1            sum   sumsq             
-//      __shfl_xor_sync    2   shuffle         rmsnorm_v2 
-//        strided    A/B             
-
+#pragma once
 #include <cuda_runtime.h>
 #include <math.h>
 
+// Centered two-pass variance avoids cancellation in E[x*x] - E[x]*E[x].
+// Preserve the original one-block-per-row, FP32 inference interface.
+__device__ float layernorm_block_sum(float value, float* scratch) {
+    const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
+    for (int offset = 16; offset > 0; offset >>= 1)
+        value += __shfl_down_sync(0xffffffff, value, offset);
+    if (lane == 0) scratch[warp] = value;
+    __syncthreads();
+    value = threadIdx.x < (blockDim.x >> 5) ? scratch[lane] : 0.f;
+    if (warp == 0) {
+        for (int offset = 16; offset > 0; offset >>= 1)
+            value += __shfl_down_sync(0xffffffff, value, offset);
+        if (lane == 0) scratch[0] = value;
+    }
+    __syncthreads();
+    return scratch[0];
+}
+
 __global__ void layernorm_v2_warpshuffle(
-    const float* __restrict__ x,      // [M, D] row-major
-    const float* __restrict__ gamma,  // [D]
-    const float* __restrict__ beta,   // [D]
-    float* __restrict__ y,            // [M, D] row-major
-    int M, int D, float eps)
-{
+    const float* __restrict__ x, const float* __restrict__ gamma,
+    const float* __restrict__ beta, float* __restrict__ y, int M, int D, float eps) {
     const int row = blockIdx.x;
     if (row >= M) return;
-
-    const float* x_row = x + (size_t)row * D;
-    float* y_row = y + (size_t)row * D;
-
-    const int warp = threadIdx.x >> 5;
-    const int lane = threadIdx.x & 31;
-
-    // ---- pass 1:       x    x  ----
-    float sum = 0.0f, sumsq = 0.0f;
-    for (int col = threadIdx.x; col < D; col += blockDim.x) {
-        const float v = x_row[col];
-        sum += v;
-        sumsq += v * v;
-    }
-
-    // ---- stage 1: warp       sum/sumsq          ----
-    float wsum = sum, wsumsq = sumsq;
-    #pragma unroll
-    for (int offset = 16; offset > 0; offset >>= 1) {
-        wsum   += __shfl_xor_sync(0xffffffff, wsum, offset);
-        wsumsq += __shfl_xor_sync(0xffffffff, wsumsq, offset);
-    }
-
-    // ---- stage 2: warp     ----
-    __shared__ float s_wsum[32];
-    __shared__ float s_wsumsq[32];
-    if (lane == 0) {
-        s_wsum[warp] = wsum;
-        s_wsumsq[warp] = wsumsq;
-    }
+    const size_t base = static_cast<size_t>(row) * D;
+    __shared__ float scratch[32];
+    float sum = 0.f;
+    for (int d = threadIdx.x; d < D; d += blockDim.x) sum += x[base + d];
+    const float mean = layernorm_block_sum(sum, scratch) / D;
+    // All threads finish reading scratch before the second reduction.
     __syncthreads();
-
-    if (warp == 0) {
-        const int nwarps = blockDim.x >> 5;
-        float v1 = (lane < nwarps) ? s_wsum[lane] : 0.0f;
-        float v2 = (lane < nwarps) ? s_wsumsq[lane] : 0.0f;
-        #pragma unroll
-        for (int offset = 16; offset > 0; offset >>= 1) {
-            v1 += __shfl_xor_sync(0xffffffff, v1, offset);
-            v2 += __shfl_xor_sync(0xffffffff, v2, offset);
-        }
-        if (lane == 0) {
-            s_wsum[0] = v1;
-            s_wsumsq[0] = v2;
-        }
+    float squares = 0.f;
+    for (int d = threadIdx.x; d < D; d += blockDim.x) {
+        const float centered = x[base + d] - mean;
+        squares += centered * centered;
     }
-    __syncthreads();
-
-    const float mean = s_wsum[0] / (float)D;
-    const float var  = s_wsumsq[0] / (float)D - mean * mean;
-    const float rstd = rsqrtf(var + eps);
-
-    // ---- pass 2: (x -  ) * rstd *   +   ----
-    for (int col = threadIdx.x; col < D; col += blockDim.x) {
-        const float v = x_row[col];
-        y_row[col] = (v - mean) * rstd * gamma[col] + beta[col];
-    }
+    const float inverse = rsqrtf(layernorm_block_sum(squares, scratch) / D + eps);
+    for (int d = threadIdx.x; d < D; d += blockDim.x)
+        y[base + d] = (x[base + d] - mean) * inverse * gamma[d] + beta[d];
 }

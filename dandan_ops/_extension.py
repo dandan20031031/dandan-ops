@@ -38,6 +38,12 @@ def load_extension(required=False):
         raise ImportError("stale dandan_ops binary: rebuild for W4A16 contract version 2") from exc
     if contract != 2:
         raise ImportError(f"incompatible W4A16 contract {contract}; rebuild dandan_ops")
+    try:
+        elementwise_contract = torch.ops.dandan_ops.elementwise_contract_version()
+    except AttributeError as exc:
+        raise ImportError("stale dandan_ops binary: rebuild for elementwise contract version 1") from exc
+    if elementwise_contract != 1:
+        raise ImportError(f"incompatible elementwise contract {elementwise_contract}; rebuild dandan_ops")
     _loaded = True
     return True
 

@@ -11,9 +11,16 @@ build or use this repository.
 | `kernels/flash_tensorcore_inference.cuh` | `flashAttention/flashattention_v2_1.cuh` |
 | `kernels/flashattention_v2_1.cuh` | Original D=64 attention experiment retained for reference |
 | Other Norm/Softmax kernels | Corresponding versioned experiments, named in their filenames |
+| `dandan_ops/csrc/elementwise.cu` | Author's `myvllm/mini_engine/kernels/csrc/elementwise.cu`; source SHA256 retained in header |
 
-Source hashes and adaptation details are preserved in kernel headers and
-[development notes](docs/DEVELOPMENT.md). Public benchmark reports replace
+Low-precision RMSNorm, residual RMSNorm and SiLU multiplication were adapted
+from the author's myvllm engine, with independent registration and boundary
+checks. The engine checkout is not a build or runtime dependency. FP32 LayerNorm
+was updated to use centered variance rather than the original sum-of-squares
+subtraction; see [numeric contracts](docs/DEVELOPMENT.md#normsoftmax-与融合小算子).
+
+Source provenance is preserved in kernel headers, this file and
+[interface notes](docs/DEVELOPMENT.md). Public benchmark reports replace
 machine-specific absolute paths with portable labels; measurements, output
 tokens and recorded source/binary hashes are preserved.
 

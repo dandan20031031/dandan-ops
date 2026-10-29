@@ -18,13 +18,15 @@ CUDA Toolkit 12.8，Visual Studio 2022 MSVC 14.44。** Linux 和其他 GPU 尚�
 | FP16 GEMM | `mma.sync` / `ldmatrix` / `cp.async`，尾块屏蔽；原生 Linear `[N,K]` 权重布局 |
 | TMA GEMM | TMA + mbarrier 流水线，FP32 累加、FP16 直接写回；当前验证 SM120 |
 | W4A16 Linear | INT4 packed 权重，group size 64，FP16 激活；GEMV、小 batch 和 Tensor Core 路径 |
-| Attention | FP16、D=128、GQA、causal、`query_start`；dense prefill / decode，不含 backward |
-| Norm / Softmax | 自定义 FP32 CUDA 路径；其他支持的输入通过 PyTorch fallback |
+| Attention | FP16/BF16、D64/128/256、GQA；dense、packed 变长 prefill、直接读取分页 KV 的 decode；causal/滑窗/softcap |
+| Norm / Softmax | FP16/BF16/FP32 RMSNorm，FP32 LayerNorm/Softmax；梯度需求回退 PyTorch |
+| 融合小算子 | FP16/BF16 残差 + RMSNorm、SiLU × Mul；明确舍入约定，不修改输入 |
 | 后端选择 | `auto` + 显式后端；98 条离线路由严格匹配设备、版本和精确形状 |
 | 可选引擎适配 | myvllm INT4 格式转换、投影替换、CUDA Graph decode 元数据缓冲复用 |
 
-Attention 当前读取 dense K/V。引擎分页 KV 的 Attention 仍由引擎实现，不能把这里的
-dense Attention 当成直接读取 `block_tables/context_lens` 的分页 kernel。
+Attention 新增独立分页 decode 接口，读取物理 KV 页；KV 分配、写入和请求归属继续由引擎负责。
+变长 prefill 使用 packed 布局。三种接口与 Graph metadata 更新约定见 [Attention 接入说明](docs/ATTENTION.md)。
+当前尚未将新接口替换进 myvllm，也未验证 Qwen3.5 完整模型生成。
 
 ## 安装
 
@@ -107,6 +109,19 @@ decode = ops.flash_attention(q[:, :, :1].contiguous(), k, v,
 性能表不匹配当前 GPU/PyTorch/CUDA 时不会套用旧设备的路由。
 各 API 的 shape、dtype、stride、scale 和 fallback 规则见 [完整技术说明](docs/DEVELOPMENT.md)。
 
+Norm/Softmax 和融合小算子支持同样的 `auto/cuda/torch` 后端选择：
+
+```python
+weight = torch.ones(x.shape[-1], device=x.device, dtype=x.dtype)
+print(ops.elementwise_execution_info("rms_norm", x, weight))
+normalized, summed = ops.residual_rms_norm(x, torch.zeros_like(x), weight)
+activated = ops.silu_and_mul(normalized, summed)
+```
+
+低精度 RMSNorm 用 FP32 归约，LayerNorm 使用中心化方差，需梯度时回退 PyTorch。
+执行信息会说明后端、回退原因及输入复制；Attention 通过 `flash_attention_execution_info`
+查询。数值、空输入、布局和发布验证约定见 [小算子接口](docs/DEVELOPMENT.md#normsoftmax-与融合小算子)。
+
 ## 可选 myvllm 集成
 
 库可独立安装；myvllm、模型权重和 tokenizer 不随仓库分发。集成测试通过 `MYVLLM_ROOT`
@@ -150,12 +165,34 @@ RTX 5080/cu128、固定生成 16 token、忽略 EOS、11 轮随机交错的中�
 32-token 预算复测延迟下降 6.5%–8.4%；配对轮次 token 一致。
 这些是短上下文实验，不代表长上下文或在线服务的吞吐。
 
-详见 [基准与复现](docs/BENCHMARKS.md)，原始 JSON 数据随源码保留。
+详见 [基准与复现](docs/BENCHMARKS.md)，支撑当前结论的原始 JSON 数据保留在仓库。
 报告集中在 [benchmarks/results](benchmarks/results/)，供复核与离线校准使用；
 运行时只读取 `dandan_ops/profiles/` 中的后端路由表。
-发布验证：兼容 `ae967dd` 引擎的全部测试 **317 passed**；当前新版引擎环境
-**294 passed, 1 skipped**（整个旧接口集成模块跳过）。新增 ABI 发现测试覆盖 Windows/Linux 文件命名。
+历史发布验证：兼容 `ae967dd` 引擎的全部测试 **317 passed**；Norm/融合算子阶段新版引擎环境
+**393 passed, 1 skipped**；Attention 扩展后为 **528 passed, 1 skipped**。
+新增能力、135 项 Attention 测试及 sanitizer 范围见 [接入说明](docs/ATTENTION.md)。
+跳过项为旧接口集成模块；ABI 发现测试覆盖 Windows/Linux 文件命名。
 已有 CUDA 测试覆盖尾块、未对齐输入、非默认 stream、CUDA Graph、数值契约、KV 隔离和异常恢复。
+本轮新增 Norm/Softmax 数值回归、梯度回退及 FP16/BF16 融合测试，也验证了小型 Qwen3
+prefill 与三步缓存 decode。构建和 wheel 验证命令见 [贡献说明](CONTRIBUTING.md)。
+
+## 文件保留原则
+
+`dandan_ops/`、`kernels/`、安装配置和许可证是功能与构建所需文件。
+`tests/` 是长期回归测试，负责防止后续修改重新引入数值、Graph 和内存边界问题；
+`benchmarks/` 与 `scripts/` 用于校准和复现，运行库不导入它们。
+源码安装包不包含测试、benchmark、历史报告或开发文档。
+
+新测量默认输出到忽略的 `build/benchmarks/`。`build/`、缓存、编译临时文件和日志
+可在进程退出后清理；本机正在使用的 `dandan_ops/_C` 扩展应保留，删除后需重新编译。
+旧测量、旧文档和清理前的构建产物已保存在项目外的本地 ZIP 归档中。
+
+## 常用算子的补充顺序
+
+现有 GEMM、量化、Norm/融合和 dense/packed/paged Attention 已覆盖主要计算。
+下一步优先评估 **RoPE → KV cache 写入 → greedy argmax**，可复用引擎已有算法，
+围绕实际模型调用补齐接口。三者目前尚未作为本库公开算子提供；具体范围与验收见
+[算子补充评估](docs/DEVELOPMENT.md#常用算子补充评估)。
 
 ## 项目结构
 
@@ -166,14 +203,16 @@ dandan-ops/
 │   ├── integrations/        可选引擎适配
 │   ├── profiles/            运行时后端路由表
 │   ├── functional.py        函数接口
+│   ├── attention.py         dense / packed / paged Attention 与 metadata plan
+│   ├── elementwise.py       Norm、Softmax 与融合小算子
 │   ├── quantization.py      INT4 格式与量化
 │   └── quantized_linear.py  W4A16 Linear
 ├── kernels/                 CUDA kernel 实现
 ├── benchmarks/              benchmark 脚本
-│   └── results/             原始报告、离线校准与冒烟记录
+│   └── results/             6 份支撑当前结论的原始报告
 ├── tests/                   数值、边界与可选引擎集成测试
 ├── scripts/                 构建、路由选择、wheel 验证
-├── docs/                    技术细节与实验记录
+├── docs/                    接口约定与基准说明
 ├── .github/workflows/       CI
 ├── setup.py
 ├── pyproject.toml
@@ -181,7 +220,7 @@ dandan-ops/
 ```
 
 从仓库根目录通过 `python -m benchmarks.bench_qwen3_gemm ...` 运行基准；
-各入口见 [benchmarks/README.md](benchmarks/README.md)。
+各入口见 [基准说明](docs/BENCHMARKS.md)。
 
 欢迎带上 GPU、PyTorch/CUDA 版本、shape、后端与最小复现提交 Issue 或 Pull Request。
 贡献方式见 [CONTRIBUTING.md](CONTRIBUTING.md)。

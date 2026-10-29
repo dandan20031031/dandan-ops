@@ -100,7 +100,7 @@ def main():
     parser.add_argument("--warmup", type=int, default=10)
     parser.add_argument("--repeats", type=int, default=21)
     parser.add_argument("--batch", type=int, default=4)
-    parser.add_argument("--json", default="benchmarks/results/bench_hgemm.json")
+    parser.add_argument("--json", default="build/benchmarks/bench_hgemm.json")
     args = parser.parse_args()
     if min(args.warmup, args.repeats, args.batch) < 1:
         parser.error("warmup/repeats/batch must be positive")
